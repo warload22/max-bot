@@ -1,0 +1,32 @@
+# Виртуальное окружение
+venv/
+env/
+.venv/
+
+# Файлы с секретами
+.env
+*.env
+
+# Логи
+logs/
+*.log
+
+# Бэкапы
+backups/
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Файлы конфигурации IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

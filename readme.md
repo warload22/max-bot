@@ -1,0 +1,142 @@
+# MAX Bot – Расписание занятий
+
+Чат-бот для мессенджера MAX, предназначенный для просмотра расписания учебных занятий. Бот интегрируется с порталом Moodle для авторизации и с базой данных расписания (MS SQL) для получения актуальной информации.
+
+## ✨ Функциональные возможности
+
+- 🔐 **Авторизация через Moodle** – безопасная проверка логина и пароля (пароль не хранится, используется bcrypt).
+- 👥 **Гибкий поиск расписания** – по группе, аудитории или преподавателю.
+- 📅 **Просмотр на неделю** – текущая, следующая и предыдущая недели с удобной навигацией.
+- 🔍 **Поиск по дате** – введите конкретную дату, и бот покажет расписание на неделю, содержащую этот день.
+- 💾 **Сохранение выбранного элемента** – группа, аудитория или преподаватель сохраняются в локальной базе для быстрого доступа.
+- 🚪 **Выход из аккаунта** – полное удаление данных пользователя из локальной БД.
+
+## 🛠 Технологический стек
+
+- **Язык:** Python 3.10+
+- **Веб-фреймворк:** Flask + Gunicorn
+- **Базы данных:** PostgreSQL (локальная), MS SQL (расписание), MariaDB (Moodle)
+- **Веб-сервер:** Nginx (reverse proxy)
+- **Менеджер процессов:** systemd
+- **Версионирование:** Git
+
+## 📋 Требования к окружению
+
+- Ubuntu 20.04 / 22.04 (или другой Linux-дистрибутив)
+- Python 3.10 или выше
+- PostgreSQL 12+
+- Доступ к MS SQL Server (база расписания)
+- Доступ к MariaDB (база Moodle)
+- Nginx (для приёма HTTPS-запросов)
+
+## 🚀 Установка и настройка
+
+### 1. Клонирование репозитория
+```
+git clone https://github.com/warload22/max-bot.git
+cd max-bot
+pip install -r requirements.txt```
+### 2. Создание виртуального окружения и установка зависимостей
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt```
+### 3. Настройка переменных окружения
+Скопируйте файл-шаблон .env.example в .env и отредактируйте его, указав реальные параметры подключения к базам данных и токен бота:
+
+```
+cp .env.example .env
+nano .env```
+### 4. Инициализация локальной базы данных PostgreSQL
+```
+python3 init_db.py```
+Скрипт создаст необходимые таблицы (users, dialog_states, user_settings).
+
+### 5. Настройка веб-сервера (Nginx)
+Пример конфигурации для reverse proxy (замените your-domain.com на ваш домен):
+```
+nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/ssl/cert.pem;
+    ssl_certificate_key /path/to/ssl/key.pem;
+
+    location /webhook {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Остальные пути можно проксировать на основной сайт, если он есть
+    location / {
+        proxy_pass http://127.0.0.1:8080; # пример для Apache
+        # аналогичные заголовки
+    }
+}
+```
+Не забудьте включить сайт и перезапустить Nginx.
+
+### 6. Настройка systemd-сервиса
+Создайте файл /etc/systemd/system/max_bot.service:
+```
+ini
+[Unit]
+Description=MAX Bot Flask App
+After=network.target
+
+[Service]
+User=your_user
+Group=your_group
+WorkingDirectory=/path/to/max-bot
+Environment="PATH=/path/to/max-bot/venv/bin"
+ExecStart=/path/to/max-bot/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 bot:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+Затем выполните:
+
+bash
+sudo systemctl daemon-reload
+sudo systemctl start max_bot
+sudo systemctl enable max_bot
+```
+### 7. Настройка подписки вебхука в MAX
+После запуска бота необходимо сообщить платформе MAX адрес для получения уведомлений. Отправьте POST-запрос:
+
+```
+curl -X POST "https://platform-api.max.ru/subscriptions" \
+  -H "Authorization: ВАШ_ТОКЕН_БОТА" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-domain.com/webhook", "update_types": ["message_created", "bot_started", "message_callback"]}'
+```
+📖 Использование бота (для конечного пользователя)
+Найдите бота в MAX по нику rasp_agz_bot или перейдите по ссылке https://max.ru/rasp_agz_bot.
+
+Отправьте любое сообщение – бот предложит авторизоваться.
+
+Нажмите «Авторизация», введите логин и пароль от портала Moodle.
+
+После успешного входа выберите тип расписания (группа/аудитория/преподаватель) и введите часть названия для поиска.
+
+Выберите нужный элемент из списка – он сохранится как ваше расписание по умолчанию.
+
+Нажмите «Моё расписание», чтобы увидеть занятия на текущую неделю.
+
+Используйте кнопки навигации для переключения между неделями или поиска по дате.
+
+📄 Лицензия
+Проект распространяется под лицензией MIT. Подробнее см. в файле LICENSE.
+
+📞 Контакты
+По вопросам и предложениям обращайтесь: warload22@gmail.com
