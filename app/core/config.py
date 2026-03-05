@@ -10,24 +10,24 @@ class Config:
     """Конфигурация приложения. Все секреты берутся из переменных окружения."""
     
     # 1. БАЗА MOODLE (MariaDB) - ТОЛЬКО ДЛЯ ЧТЕНИЯ
-    MOODLE_DB_HOST = os.getenv('MOODLE_DB_HOST', 'localhost')
+    MOODLE_DB_HOST = os.getenv('MOODLE_DB_HOST', '')
     MOODLE_DB_PORT = int(os.getenv('MOODLE_DB_PORT', '3306'))
-    MOODLE_DB_NAME = os.getenv('MOODLE_DB_NAME', 'w1_sdo')
-    MOODLE_DB_USER = os.getenv('MOODLE_DB_USER', 'bot_readonly')
+    MOODLE_DB_NAME = os.getenv('MOODLE_DB_NAME', '')
+    MOODLE_DB_USER = os.getenv('MOODLE_DB_USER', '')
     MOODLE_DB_PASSWORD = os.getenv('MOODLE_DB_PASSWORD')  # БЕЗ ДЕФОЛТНОГО ЗНАЧЕНИЯ!
     
     # 2. БАЗА РАСПИСАНИЯ (MS SQL) - ТОЛЬКО ДЛЯ ЧТЕНИЯ
-    SCHEDULE_DB_SERVER = os.getenv('SCHEDULE_DB_SERVER', '192.168.120.109')
+    SCHEDULE_DB_SERVER = os.getenv('SCHEDULE_DB_SERVER', '')
     SCHEDULE_DB_PORT = int(os.getenv('SCHEDULE_DB_PORT', '1433'))
-    SCHEDULE_DB_NAME = os.getenv('SCHEDULE_DB_NAME', 'Деканат')
-    SCHEDULE_DB_USER = os.getenv('SCHEDULE_DB_USER', 'max_bot')
+    SCHEDULE_DB_NAME = os.getenv('SCHEDULE_DB_NAME', '')
+    SCHEDULE_DB_USER = os.getenv('SCHEDULE_DB_USER', '')
     SCHEDULE_DB_PASSWORD = os.getenv('SCHEDULE_DB_PASSWORD')  # БЕЗ ДЕФОЛТНОГО ЗНАЧЕНИЯ!
     
     # 3. ЛОКАЛЬНАЯ БАЗА БОТА (PostgreSQL)
-    LOCAL_DB_HOST = os.getenv('LOCAL_DB_HOST', 'localhost')
+    LOCAL_DB_HOST = os.getenv('LOCAL_DB_HOST', '')
     LOCAL_DB_PORT = int(os.getenv('LOCAL_DB_PORT', '5432'))
-    LOCAL_DB_NAME = os.getenv('LOCAL_DB_NAME', 'max_bot_db')
-    LOCAL_DB_USER = os.getenv('LOCAL_DB_USER', 'max_bot_user')
+    LOCAL_DB_NAME = os.getenv('LOCAL_DB_NAME', '')
+    LOCAL_DB_USER = os.getenv('LOCAL_DB_USER', '')
     LOCAL_DB_PASSWORD = os.getenv('LOCAL_DB_PASSWORD')  # БЕЗ ДЕФОЛТНОГО ЗНАЧЕНИЯ!
     
     # 4. МЕССЕНДЖЕР MAX
