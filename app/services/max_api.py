@@ -5,7 +5,7 @@
 
 import requests
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, List
 from app.core.config import config
 
 logger = logging.getLogger(__name__)

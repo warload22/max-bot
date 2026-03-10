@@ -5,7 +5,7 @@
 """
 
 import logging
-from typing import Optional, List, Dict
+from typing import Optional
 from app.services import max_api
 from app.services.user_service import get_dialog_state, set_dialog_state
 

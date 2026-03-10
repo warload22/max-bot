@@ -64,3 +64,39 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
     else:
         logger.warning(f"Неверный пароль для {username}")
         return None
+
+def is_user_admin(moodle_user_id: int) -> bool:
+    """
+    Проверяет, является ли пользователь с данным ID администратором Moodle.
+    Администраторы определяются параметром siteadmins в таблице mdl_config.
+    """
+    try:
+        logger.info(f"is_user_admin: проверка для moodle_user_id={moodle_user_id}")
+        conn = get_moodle_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT value FROM mdl_config WHERE name = 'siteadmins'")
+            result = cursor.fetchone()
+            logger.info(f"is_user_admin: result = {result}")
+        conn.close()
+        
+        if not result or not result['value']:
+            logger.debug(f"siteadmins не найден или пуст")
+            return False
+        
+        # Парсим строку вида "7,6,33,17021,9123,..." в список целых чисел
+        admin_ids_str = result['value'].strip()
+        admin_ids = []
+        for part in admin_ids_str.split(','):
+            part = part.strip()
+            if part.isdigit():
+                admin_ids.append(int(part))
+            else:
+                logger.warning(f"Некорректный ID в siteadmins: '{part}'")
+        
+        is_admin = moodle_user_id in admin_ids
+        logger.info(f"is_user_admin: moodle_user_id={moodle_user_id} в списке? {is_admin}")
+        return is_admin
+    
+    except Exception as e:
+        logger.error(f"Ошибка при проверке прав администратора для user_id {moodle_user_id}: {e}", exc_info=True)
+        return False

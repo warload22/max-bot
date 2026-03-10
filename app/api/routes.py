@@ -5,7 +5,7 @@
 
 import logging
 from flask import Blueprint, request, jsonify
-from app.services.message_handler import handle_update
+from app.handlers.message_handler import handle_update
 
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)

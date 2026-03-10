@@ -58,6 +58,13 @@ try:
 except ImportError as e:
     logger.error(f"Не удалось зарегистрировать blueprint: {e}")
 
+try:
+    from app.services.admin_service import log_restart
+    log_restart()
+    logger.info("Рестарт залогирован")
+except Exception as e:
+    logger.error(f"Не удалось залогировать рестарт: {e}")
+
 @app.route('/health', methods=['GET'])
 def health():
     """Эндпоинт для проверки работоспособности"""

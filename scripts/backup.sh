@@ -51,7 +51,8 @@ fi
 # Удаляем временные файлы
 rm -f "/tmp/max_bot_db_${TIMESTAMP}.sql" "/tmp/.env_${TIMESTAMP}"
 
-# Удаляем старые бекапы (старше 7 дней)
-find "$BACKUP_DIR" -name "max_bot_backup_*.tar.gz" -type f -mtime +7 -delete >> "$LOG_FILE" 2>&1
+# Удаляем старые бекапы (старше 7 дней) - используем -mtime +6 для надёжности
+DELETED=$(find "$BACKUP_DIR" -name "max_bot_backup_*.tar.gz" -type f -mtime +6 -print -delete | wc -l)
+echo "$(date): Удалено старых бекапов: $DELETED" >> "$LOG_FILE"
 
 echo "$(date): Бекап успешно завершён: $BACKUP_FILE" >> "$LOG_FILE"

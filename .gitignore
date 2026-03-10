@@ -11,7 +11,7 @@ env/
 logs/
 *.log
 
-# Бэкапы
+# Бекапы
 backups/
 
 # Кэш Python
@@ -30,3 +30,6 @@ build/
 *.swp
 *.swo
 *~
+
+# Временные/служебные файлы
+tuna.tar.gz

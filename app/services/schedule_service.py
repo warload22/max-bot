@@ -12,6 +12,22 @@ from app.core.database import get_schedule_connection
 
 logger = logging.getLogger(__name__)
 
+# ---------- Константы ----------
+TYPE_EMOJI = {
+    'лек': '📖', 'л': '📖',
+    'пр': '📝', 'пз': '📝', 'сем': '📝', 'с': '📝',
+    'лр': '🧪', 'лаб': '🧪',
+    'экз': '✅', 'эк': '✅', 'зач': '✅', 'з': '✅',
+    'конс': '💬',
+    'кп': '🛠️',
+    'кр': '✍️',
+    'реф': '📄',
+    'курс': '📋',
+    'др': '📌'
+}
+
+DAYS_MAP = {0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт", 4: "Пт", 5: "Сб", 6: "Вс"}
+
 # ---------- Вспомогательные функции ----------
 def get_current_academic_year() -> str:
     """
@@ -57,11 +73,10 @@ def get_groups(academic_year: Optional[str] = None) -> List[Dict[str, any]]:
     """
     Возвращает список всех активных групп из таблицы Все_Группы за указанный учебный год.
     Если academic_year не передан, используется текущий учебный год.
-    Каждая группа содержит поля: id (Код), name (Название), course (Курс).
     """
     if academic_year is None:
         academic_year = get_current_academic_year()
-    
+
     conn = None
     try:
         conn = get_schedule_connection()
@@ -141,10 +156,16 @@ def get_teachers() -> List[Dict[str, any]]:
         if conn:
             conn.close()
 
-# ---------- Получение расписания ----------
-def get_schedule_for_group(group_id: int, start_date: datetime, end_date: datetime) -> List[Dict[str, any]]:
+# ---------- Получение расписания (общая функция) ----------
+def _get_schedule_base(
+    where_clause: str,
+    params: tuple,
+    start_date: datetime,
+    end_date: datetime
+) -> List[Dict[str, any]]:
     """
-    Возвращает расписание для указанной группы за период [start_date, end_date].
+    Базовая функция для выполнения запроса расписания.
+    Принимает часть WHERE и параметры.
     """
     conn = None
     try:
@@ -152,7 +173,7 @@ def get_schedule_for_group(group_id: int, start_date: datetime, end_date: dateti
         with conn.cursor() as cursor:
             start_str = start_date.strftime('%Y-%m-%d')
             end_str = end_date.strftime('%Y-%m-%d')
-            cursor.execute("""
+            query = f"""
                 SELECT 
                     r.Дата as date,
                     r.ВремяС as time_start,
@@ -168,25 +189,29 @@ def get_schedule_for_group(group_id: int, start_date: datetime, end_date: dateti
                     g.Название as group_name
                 FROM Расписание r
                 LEFT JOIN Все_Группы g ON r.Код_Группы = g.Код
-                WHERE r.Код_Группы = %s 
-                    AND r.Дата >= %s 
-                    AND r.Дата <= %s
+                WHERE r.Дата >= %s AND r.Дата <= %s
+                AND {where_clause}
                 ORDER BY r.Дата, r.НомерЗанятия
-            """, (group_id, start_str, end_str))
+            """
+            cursor.execute(query, (start_str, end_str) + params)
             rows = cursor.fetchall()
             schedule = [dict(row) for row in rows]
-            logger.info(f"Для группы {group_id} получено записей: {len(schedule)}")
             return schedule
     except Exception as e:
-        logger.error(f"Ошибка при получении расписания для группы {group_id}: {e}")
+        logger.error(f"Ошибка при получении расписания: {e}")
         return []
     finally:
         if conn:
             conn.close()
 
+def get_schedule_for_group(group_id: int, start_date: datetime, end_date: datetime) -> List[Dict[str, any]]:
+    """Возвращает расписание для указанной группы."""
+    return _get_schedule_base("r.Код_Группы = %s", (group_id,), start_date, end_date)
+
 def get_schedule_for_room(room_id: int, start_date: datetime, end_date: datetime) -> List[Dict[str, any]]:
     """
-    Возвращает расписание для указанной аудитории за период [start_date, end_date].
+    Возвращает расписание для указанной аудитории.
+    Сначала получает название аудитории по ID, затем ищет по названию.
     """
     conn = None
     try:
@@ -198,44 +223,19 @@ def get_schedule_for_room(room_id: int, start_date: datetime, end_date: datetime
                 logger.warning(f"Аудитория с ID {room_id} не найдена")
                 return []
             room_name = row['Аудитория']
-
-            start_str = start_date.strftime('%Y-%m-%d')
-            end_str = end_date.strftime('%Y-%m-%d')
-            cursor.execute("""
-                SELECT 
-                    r.Дата as date,
-                    r.ВремяС as time_start,
-                    r.ВремяПо as time_end,
-                    r.Дисциплина as discipline,
-                    r.Преподаватель as teacher,
-                    r.Аудитория as room,
-                    r.ВидЗанятия as lesson_type,
-                    r.НомерЗанятия as lesson_number,
-                    r.НомерПодгруппы as subgroup,
-                    r.Тема as topic,
-                    r.ДеньНедели as day_of_week,
-                    g.Название as group_name
-                FROM Расписание r
-                LEFT JOIN Все_Группы g ON r.Код_Группы = g.Код
-                WHERE r.Аудитория = %s 
-                    AND r.Дата >= %s 
-                    AND r.Дата <= %s
-                ORDER BY r.Дата, r.НомерЗанятия
-            """, (room_name, start_str, end_str))
-            rows = cursor.fetchall()
-            schedule = [dict(row) for row in rows]
-            logger.info(f"Для аудитории {room_name} получено записей: {len(schedule)}")
-            return schedule
     except Exception as e:
-        logger.error(f"Ошибка при получении расписания для аудитории {room_id}: {e}")
+        logger.error(f"Ошибка при получении названия аудитории: {e}")
         return []
     finally:
         if conn:
             conn.close()
 
+    return _get_schedule_base("r.Аудитория = %s", (room_name,), start_date, end_date)
+
 def get_schedule_for_teacher(teacher_id: int, start_date: datetime, end_date: datetime) -> List[Dict[str, any]]:
     """
-    Возвращает расписание для указанного преподавателя за период [start_date, end_date].
+    Возвращает расписание для указанного преподавателя.
+    Сначала получает ФИО преподавателя по ID, затем ищет по LIKE (частичное совпадение).
     """
     conn = None
     try:
@@ -247,40 +247,14 @@ def get_schedule_for_teacher(teacher_id: int, start_date: datetime, end_date: da
                 logger.warning(f"Преподаватель с ID {teacher_id} не найден")
                 return []
             teacher_name = row['ФИО']
-
-            start_str = start_date.strftime('%Y-%m-%d')
-            end_str = end_date.strftime('%Y-%m-%d')
-            cursor.execute("""
-                SELECT 
-                    r.Дата as date,
-                    r.ВремяС as time_start,
-                    r.ВремяПо as time_end,
-                    r.Дисциплина as discipline,
-                    r.Преподаватель as teacher,
-                    r.Аудитория as room,
-                    r.ВидЗанятия as lesson_type,
-                    r.НомерЗанятия as lesson_number,
-                    r.НомерПодгруппы as subgroup,
-                    r.Тема as topic,
-                    r.ДеньНедели as day_of_week,
-                    g.Название as group_name
-                FROM Расписание r
-                LEFT JOIN Все_Группы g ON r.Код_Группы = g.Код
-                WHERE r.Преподаватель LIKE %s 
-                    AND r.Дата >= %s 
-                    AND r.Дата <= %s
-                ORDER BY r.Дата, r.НомерЗанятия
-            """, (f'%{teacher_name}%', start_str, end_str))
-            rows = cursor.fetchall()
-            schedule = [dict(row) for row in rows]
-            logger.info(f"Для преподавателя {teacher_name} получено записей: {len(schedule)}")
-            return schedule
     except Exception as e:
-        logger.error(f"Ошибка при получении расписания для преподавателя {teacher_id}: {e}")
+        logger.error(f"Ошибка при получении ФИО преподавателя: {e}")
         return []
     finally:
         if conn:
             conn.close()
+
+    return _get_schedule_base("r.Преподаватель LIKE %s", (f'%{teacher_name}%',), start_date, end_date)
 
 # ---------- Форматирование ----------
 def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
@@ -297,38 +271,24 @@ def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
     if not schedule:
         return "На текущую неделю расписания нет."
 
-    type_emoji = {
-        'лек': '📖', 'л': '📖',
-        'пр': '📝', 'пз': '📝', 'сем': '📝', 'с': '📝',
-        'лр': '🧪', 'лаб': '🧪',
-        'экз': '✅', 'эк': '✅', 'зач': '✅', 'з': '✅',
-        'конс': '💬',
-        'кп': '🛠️',
-        'кр': '✍️',
-        'реф': '📄',
-        'курс': '📋',
-        'др': '📌'
-    }
-
-    days_map = {0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт", 4: "Пт", 5: "Сб", 6: "Вс"}
-
+    # Группируем по датам
     by_date = {}
     for item in schedule:
         date_obj = item['date']
         by_date.setdefault(date_obj, []).append(item)
 
     lines = ["📅 <b>Расписание на неделю:</b>"]
-    
+
     for date_obj in sorted(by_date):
-        day = days_map[date_obj.weekday()]
+        day = DAYS_MAP[date_obj.weekday()]
         date_str = date_obj.strftime('%d.%m')
         lines.append(f"\n<b>{day} {date_str}</b>")
-        
+
         sorted_items = sorted(by_date[date_obj], key=lambda x: (x.get('time_start') or ''))
         for idx, item in enumerate(sorted_items, 1):
             lesson_type = (item.get('lesson_type') or '').strip()
             discipline_raw = (item.get('discipline') or '—').strip()
-            
+
             if lesson_type and discipline_raw.startswith(lesson_type):
                 discipline = discipline_raw[len(lesson_type):].lstrip()
                 if discipline.startswith(lesson_type):
@@ -345,7 +305,7 @@ def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
             topic_raw = item.get('topic')
             topic = clean_topic(topic_raw)
 
-            emoji = type_emoji.get(lesson_type.lower(), '📌')
+            emoji = TYPE_EMOJI.get(lesson_type.lower(), '📌')
 
             lines.append(f"{idx} ⏰ {time}")
             lines.append(f"📚 {discipline}")
@@ -354,7 +314,6 @@ def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
             else:
                 lines.append(f"{emoji} {lesson_type}")
 
-            # Две отдельные строки для персоны и места
             if view_type == 'group':
                 lines.append(f"👤 {teacher}")
                 lines.append(f"🏫 {room}")
@@ -367,5 +326,5 @@ def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
             else:
                 lines.append(f"👤 {teacher}")
                 lines.append(f"🏫 {room}")
-    
+
     return "\n".join(lines)

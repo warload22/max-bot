@@ -1,11 +1,11 @@
 """
 Модуль для работы с локальной базой данных пользователей и состояний диалога.
-Использует таблицы users, dialog_states и user_settings в PostgreSQL.
+Использует таблицы users, dialog_states, user_settings и user_actions в PostgreSQL.
 """
 
 import logging
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 from datetime import datetime
 from app.core.database import get_local_connection
 
@@ -22,7 +22,7 @@ def get_user_by_max_id(max_user_id: int) -> Optional[Dict]:
         conn = get_local_connection()
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT id, max_user_id, moodle_username, is_authenticated, "
+                "SELECT id, max_user_id, moodle_username, moodle_user_id, is_authenticated, "
                 "authenticated_at, last_interaction FROM users WHERE max_user_id = %s",
                 (str(max_user_id),)
             )
@@ -37,7 +37,7 @@ def get_user_by_max_id(max_user_id: int) -> Optional[Dict]:
         if conn:
             conn.close()
 
-def create_user(max_user_id: int, moodle_username: str) -> bool:
+def create_user(max_user_id: int, moodle_username: str, moodle_user_id: int) -> bool:
     """
     Создаёт новую запись пользователя после успешной авторизации.
     """
@@ -46,12 +46,12 @@ def create_user(max_user_id: int, moodle_username: str) -> bool:
         conn = get_local_connection()
         with conn.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (max_user_id, moodle_username, is_authenticated, authenticated_at) "
-                "VALUES (%s, %s, TRUE, %s)",
-                (str(max_user_id), moodle_username, datetime.now())
+                "INSERT INTO users (max_user_id, moodle_username, moodle_user_id, is_authenticated, authenticated_at) "
+                "VALUES (%s, %s, %s, TRUE, %s)",
+                (str(max_user_id), moodle_username, moodle_user_id, datetime.now())
             )
         conn.commit()
-        logger.info(f"Пользователь {max_user_id} создан (Moodle: {moodle_username})")
+        logger.info(f"Пользователь {max_user_id} создан (Moodle ID: {moodle_user_id}, username: {moodle_username})")
         return True
     except Exception as e:
         logger.error(f"Ошибка при создании пользователя {max_user_id}: {e}")
@@ -62,7 +62,7 @@ def create_user(max_user_id: int, moodle_username: str) -> bool:
         if conn:
             conn.close()
 
-def update_user_authentication(max_user_id: int, moodle_username: str) -> bool:
+def update_user_authentication(max_user_id: int, moodle_username: str, moodle_user_id: int) -> bool:
     """
     Обновляет статус аутентификации существующего пользователя.
     """
@@ -71,9 +71,9 @@ def update_user_authentication(max_user_id: int, moodle_username: str) -> bool:
         conn = get_local_connection()
         with conn.cursor() as cursor:
             cursor.execute(
-                "UPDATE users SET is_authenticated = TRUE, moodle_username = %s, "
+                "UPDATE users SET is_authenticated = TRUE, moodle_username = %s, moodle_user_id = %s, "
                 "authenticated_at = %s, last_interaction = %s WHERE max_user_id = %s",
-                (moodle_username, datetime.now(), datetime.now(), str(max_user_id))
+                (moodle_username, moodle_user_id, datetime.now(), datetime.now(), str(max_user_id))
             )
         conn.commit()
         logger.info(f"Пользователь {max_user_id} обновлён (аутентифицирован)")
@@ -87,15 +87,45 @@ def update_user_authentication(max_user_id: int, moodle_username: str) -> bool:
         if conn:
             conn.close()
 
-def set_user_authenticated(max_user_id: int, moodle_username: str) -> bool:
+def set_user_authenticated(max_user_id: int, moodle_username: str, moodle_user_id: int) -> bool:
     """
     Создаёт или обновляет запись пользователя после успешной авторизации.
     """
     user = get_user_by_max_id(max_user_id)
     if user:
-        return update_user_authentication(max_user_id, moodle_username)
+        return update_user_authentication(max_user_id, moodle_username, moodle_user_id)
     else:
-        return create_user(max_user_id, moodle_username)
+        return create_user(max_user_id, moodle_username, moodle_user_id)
+
+# ---------- Логирование действий ----------
+
+def log_user_action(max_user_id: int, action_type: str, moodle_user_id: int = None, details: Optional[Dict] = None) -> bool:
+    """
+    Записывает действие пользователя в таблицу user_actions.
+    Если передан moodle_user_id, сохраняет его.
+    """
+    conn = None
+    try:
+        conn = get_local_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO user_actions (user_id, action_type, moodle_user_id, details, created_at) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (str(max_user_id), action_type, moodle_user_id, 
+                 json.dumps(details, ensure_ascii=False) if details else None, 
+                 datetime.now())
+            )
+        conn.commit()
+        logger.debug(f"Действие {action_type} от {max_user_id} залогировано (moodle={moodle_user_id})")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка при логировании действия {action_type} для {max_user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 # ---------- Работа с состояниями диалога ----------
 
