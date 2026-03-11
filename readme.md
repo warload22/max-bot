@@ -177,8 +177,8 @@ curl -X POST "https://platform-api.max.ru/subscriptions" \
 sql
 SELECT value FROM mdl_config WHERE name = 'siteadmins';
 ```
-###📄 Лицензия
+### 📄 Лицензия
 Проект распространяется под лицензией MIT. Подробнее см. в файле LICENSE.
 
-###📞 Контакты
+### 📞 Контакты
 По вопросам и предложениям обращайтесь: warload22@gmail.com
