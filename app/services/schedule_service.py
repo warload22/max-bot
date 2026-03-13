@@ -305,9 +305,13 @@ def format_schedule(schedule: List[Dict[str, any]], view_type: str) -> str:
             topic_raw = item.get('topic')
             topic = clean_topic(topic_raw)
 
+            # ✅ Используем реальный номер пары из БД, если он есть
+            lesson_number = item.get('lesson_number')
+            pair_num = lesson_number if lesson_number and lesson_number != 0 else idx
+
             emoji = TYPE_EMOJI.get(lesson_type.lower(), '📌')
 
-            lines.append(f"{idx} ⏰ {time}")
+            lines.append(f"{pair_num} ⏰ {time}")
             lines.append(f"📚 {discipline}")
             if topic:
                 lines.append(f"{emoji} {lesson_type} {topic}")
