@@ -96,9 +96,9 @@ def handle_text_message(chat_id: int, user_id: int, text: str, message_id: Optio
     data = state_data['data'] or {}
 
     if state == STATE_AWAITING_LOGIN:
-        auth_handler.handle_login_input(chat_id, user_id, text, message_id, data)
+        auth_handler.handle_login_input(chat_id, user_id, text, message_id)
     elif state == STATE_AWAITING_PASSWORD:
-        auth_handler.handle_password_input(chat_id, user_id, text, message_id, data)
+        auth_handler.handle_password_input(chat_id, user_id, text, message_id)
     elif state == STATE_AWAITING_SEARCH_TYPE:
         send_or_edit(chat_id, user_id, "Пожалуйста, выберите тип расписания, нажав на кнопку.",
                      keyboard=[[{"type": "callback", "text": "📋 Меню", "intent": "default", "payload": "menu"}]])
@@ -120,7 +120,7 @@ def handle_callback(chat_id: int, user_id: int, callback_data: str, message_id: 
 
     # Обработка общих callback'ов
     if callback_data == "start_auth":
-        auth_handler.handle_start_auth(chat_id, user_id, callback_data, message_id)
+        auth_handler.handle_start_auth(chat_id, user_id)
         return
 
     if callback_data == "info":

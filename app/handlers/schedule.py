@@ -133,11 +133,47 @@ def handle_week_navigation(chat_id, user_id, callback_data):
         show_schedule_for_week(chat_id, user_id, search_type, entity_id, week_offset=offset)
 
 def handle_date_input(chat_id, user_id, text, data):
-    """Обрабатывает ввод даты для поиска."""
-    # Эта функция должна быть реализована аналогично старой логике
-    # Для краткости я пропускаю, но нужно перенести из старого message_handler.py
-    # Пока оставим заглушку
-    send_or_edit(chat_id, user_id, "Функция поиска по дате временно недоступна.")
+    """Обрабатывает ввод даты для поиска и показывает неделю с этой датой."""
+    from datetime import datetime, timedelta
+    from app.services import user_service, schedule_service
+    from app.handlers.common import send_or_edit
+    from app.handlers.schedule import show_schedule_for_week
+
+    keyboard = [[{"type": "callback", "text": "📋 Меню", "intent": "default", "payload": "menu"}]]
+    try:
+        parts = text.strip().split('.')
+        if len(parts) == 3:
+            day = int(parts[0])
+            month = int(parts[1])
+            year_part = parts[2]
+            if len(year_part) == 2:
+                year = 2000 + int(year_part) if int(year_part) < 50 else 1900 + int(year_part)
+            else:
+                year = int(year_part)
+            input_date = datetime(year, month, day).date()
+        else:
+            raise ValueError("Неверный формат")
+
+        # Вычисляем понедельник недели, содержащей эту дату
+        monday = input_date - timedelta(days=input_date.weekday())
+
+        settings = user_service.get_user_settings(user_id)
+        if not settings or not settings.get('selected_type') or not settings.get('selected_id'):
+            send_or_edit(chat_id, user_id, "Сначала выберите расписание (группу, аудиторию или преподавателя).")
+            from app.handlers.message_handler import show_search_type_menu
+            show_search_type_menu(chat_id, user_id)
+            user_service.clear_dialog_state(user_id)
+            return
+
+        search_type = settings['selected_type']
+        entity_id = settings['selected_id']
+        user_service.clear_dialog_state(user_id)
+        show_schedule_for_week(chat_id, user_id, search_type, entity_id, target_monday=monday)
+
+    except Exception as e:
+        logger.warning(f"Ошибка парсинга даты: {e}")
+        send_or_edit(chat_id, user_id, "❌ Не удалось распознать дату. Пожалуйста, введите в формате ДД.ММ.ГГ или ДД.ММ.ГГГГ.", keyboard=keyboard)
+        return
 
 def show_schedule_for_week(chat_id: int, user_id: int, search_type: str, entity_id: int,
                            week_offset: int = 0, target_monday: Optional[datetime.date] = None):
