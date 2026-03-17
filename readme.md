@@ -57,21 +57,25 @@
 ```
 git clone https://github.com/warload22/max-bot.git
 cd max-bot
-pip install -r requirements.txt```
+pip install -r requirements.txt
+```
 ### 2. Создание виртуального окружения и установка зависимостей
 ```
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt```
+pip install -r requirements.txt
+```
 ### 3. Настройка переменных окружения
 Скопируйте файл-шаблон .env.example в .env и отредактируйте его, указав реальные параметры подключения к базам данных и токен бота:
 
 ```
 cp .env.example .env
-nano .env```
+nano .env
+```
 ### 4. Инициализация локальной базы данных PostgreSQL
 ```
-python3 init_db.py```
+python3 init_db.py
+```
 Скрипт создаст необходимые таблицы (users, dialog_states, user_settings).
 
 ### 5. Настройка веб-сервера (Nginx)
